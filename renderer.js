@@ -1,10 +1,21 @@
 window.onload = main;
     const game = {
         current_angle: 0,
+        mouse_pos: {x:0, y:0}
     };
 
     function main() {
+
+        function handleMouseMovement(canvas, e, game) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientX - rect.top;
+            game.mouse_pos.x = x;
+            game.mouse_pos.y = y;
+        }
+
         const canvas = document.querySelector('#gl_canvas');
+        canvas.addEventListener("mousemove", e => handleMouseMovement(canvas, e, game));
 
         const gl = canvas.getContext("webgl");
 
@@ -29,57 +40,6 @@ window.onload = main;
 
         const buffers = initBuffers(gl);
         
-
-        let then = 0;
-        function render(now) {
-            now *= 0.001; // convert to seconds
-            const dt = now - then;
-            drawScene(gl, program_info, buffers, game, dt);
-            window.requestAnimationFrame(render);
-        }
-
-        render();
-        //window.requestAnimationFrame(render);
-
-    }
-
-    
-
-
-//    let current_angle = 0;
-
-    function drawScene(gl, program_info, buffers, game, dt) {
-
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
-        gl.clearDepth(1.0);                 // Clear everything
-        gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-        gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
-
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        const fov = (45.0 * Math.PI) / 180.0;
-        const aspect_ratio = gl.canvas.clientWidth / gl.canvas.clientHeight;
-        const z_near = 0.1;
-        const z_far = 1000.0;
-        const projection_mat = mat4.create();
-        
-        mat4.perspective(
-            projection_mat,
-            fov,
-            aspect_ratio,
-            z_near,
-            z_far
-        );
-
-
-        const model_view_mat = mat4.create();
-        game.current_angle += 1.1;
-        const radians = (game.current_angle * Math.PI) / 180.0;
-        
-        mat4.translate(model_view_mat, model_view_mat, [0.0, 0.0, -6.0]);
-        mat4.rotate(model_view_mat, model_view_mat, radians, [0.0,1.0,0.3])
-
-
         {
             const VB = buffers.vertex;
             const pointer = program_info.attrib_locations.vertex_positions;
@@ -113,16 +73,66 @@ window.onload = main;
         }
 
 
+        let then = 0;
+        function render(now) {
+            now *= 0.001; // convert to seconds
+            const dt = now - then;
+            drawScene(gl, program_info, buffers, game, dt);
+            requestAnimationFrame(render);
+        }
 
-        gl.useProgram(program_info.program);
+        requestAnimationFrame(render);
 
-        // Set matrix view model proj uniforms
-        gl.uniformMatrix4fv( program_info.uniform_locations.projection,  false,  projection_mat );
-        gl.uniformMatrix4fv( program_info.uniform_locations.model_view,  false,  model_view_mat );
+    }
+
+
+
+    function drawScene(gl, program_info, buffers, game, dt) {
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
+        gl.clearDepth(1.0);                 // Clear everything
+        gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+        gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        const fov = (45.0 * Math.PI) / 180.0;
+        const aspect_ratio = gl.canvas.clientWidth / gl.canvas.clientHeight;
+        const z_near = 0.1;
+        const z_far = 1000.0;
+        const projection_mat = mat4.create();
         
+        mat4.perspective(
+            projection_mat,
+            fov,
+            aspect_ratio,
+            z_near,
+            z_far
+        );
 
-        // DRAW
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        for (let i =0; i < 8; i++) {
+            const model_view_mat = mat4.create();
+            const delta_angle = game.mouse_pos.x / gl.canvas.clientWidth;
+            game.current_angle += delta_angle * 0.5;
+            const radians = (game.current_angle * Math.PI) / 180.0;
+            
+            mat4.translate(model_view_mat, model_view_mat, [0.0 + i , 0.0, -6.0]);
+            mat4.rotate(model_view_mat, model_view_mat, radians, [0.0,1.0,0])
+    
+    
+            
+    
+    
+            gl.useProgram(program_info.program);
+    
+            // Set matrix view model proj uniforms
+            gl.uniformMatrix4fv( program_info.uniform_locations.projection,  false,  projection_mat );
+            gl.uniformMatrix4fv( program_info.uniform_locations.model_view,  false,  model_view_mat );
+            
+    
+            // DRAW
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
     }
 
 
